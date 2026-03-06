@@ -1,0 +1,24 @@
+# =============================================================
+# quant-bot-template 설정 파일
+# 이 파일을 복사하여 config.yaml 로 저장한 뒤 값을 채워 주세요.
+#   cp config.template.yaml config.yaml
+# =============================================================
+
+# --- 한국투자증권 모의투자 API ---
+kis:
+  app_key: "YOUR_APP_KEY"
+  app_secret: "YOUR_APP_SECRET"
+  account_no: "12345678-01"       # 모의투자 계좌번호 (8자리-2자리)
+
+# --- Telegram 알림 ---
+telegram:
+  bot_token: "123456:ABC-DEF..."  # @BotFather 에서 발급
+  chat_id: 0                      # 본인 chat_id (정수)
+
+# --- 봇 실행 설정 ---
+bot:
+  # 전략 실행 주기 (분 단위). 예: 10 → 10분마다 실행
+  interval_minutes: 10
+  # 장 시작/종료 시각 (HH:MM). 이 시간 밖에서는 전략을 실행하지 않음
+  market_open: "09:00"
+  market_close: "15:30"
