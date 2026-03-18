@@ -150,6 +150,38 @@ class KISClient:
         """
         return self._place_order(ticker, qty, price, side="sell")
 
+    # ------------------------------------------------------------------ #
+    #  투자자별 매매동향 조회
+    # ------------------------------------------------------------------ #
+
+    def get_investor_trend(self, ticker: str) -> dict[str, Any]:
+        """종목의 투자자별 매매동향을 조회합니다.
+
+        Args:
+            ticker: 종목코드 (예: "005930")
+
+        Returns:
+            API 응답 딕셔너리. output 리스트의 첫 번째 항목이 당일 데이터.
+        """
+        self._ensure_auth()
+        url = f"{BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-investor"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_INPUT_ISCD": ticker,
+        }
+        resp = requests.get(
+            url,
+            params=params,
+            headers=self._headers("FHKST01010900"),
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ------------------------------------------------------------------ #
+    #  매수 / 매도 주문 (내부)
+    # ------------------------------------------------------------------ #
+
     def _place_order(
         self, ticker: str, qty: int, price: int, *, side: str
     ) -> dict[str, Any]:

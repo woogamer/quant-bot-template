@@ -150,7 +150,7 @@ def run_cycle(
 
     # 2) 전략 호출
     try:
-        signals = generate_signal(market_data, account_data)
+        signals = generate_signal(market_data, account_data, kis)
     except Exception as e:
         log.error(f"전략 실행 에러: {e}")
         notifier.notify_error(f"전략 에러: {e}")
