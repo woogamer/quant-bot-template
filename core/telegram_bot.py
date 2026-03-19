@@ -48,12 +48,14 @@ class TelegramNotifier:
         """봇 종료 알림."""
         self.send("*[봇 종료]* 자동매매 봇이 종료되었습니다.")
 
-    def notify_order(self, ticker: str, action: str, qty: int) -> None:
+    def notify_order(self, ticker: str, action: str, qty: int, name: str = "", reason: str = "") -> None:
         """주문 체결 알림."""
-        emoji = "BUY" if action.upper() == "BUY" else "SELL"
-        self.send(
-            f"*[주문 {emoji}]* {ticker} / {action.upper()} / {qty}주"
-        )
+        label = f"{name}({ticker})" if name else ticker
+        emoji = "📈" if action.upper() == "BUY" else "📉"
+        msg = f"{emoji} *[{action.upper()}]* {label} / {qty}주"
+        if reason:
+            msg += f"\n└ {reason}"
+        self.send(msg)
 
     def notify_error(self, error_msg: str) -> None:
         """에러 알림."""

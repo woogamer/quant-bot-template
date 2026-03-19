@@ -99,6 +99,8 @@ def execute_signals(
         action = sig.get("action", "").upper()
         qty = sig.get("qty", 0)
         price = sig.get("price", 0)
+        name = sig.get("name", "")
+        reason = sig.get("reason", "")
 
         if not ticker or not action or qty <= 0:
             log.warning(f"잘못된 시그널 무시: {sig}")
@@ -112,7 +114,7 @@ def execute_signals(
             else:
                 log.warning(f"알 수 없는 action: {action}")
                 continue
-            notifier.notify_order(ticker, action, qty)
+            notifier.notify_order(ticker, action, qty, name=name, reason=reason)
         except Exception as e:
             log.error(f"주문 실패 ({ticker} {action}): {e}")
             notifier.notify_error(f"주문 실패: {ticker} {action} - {e}")

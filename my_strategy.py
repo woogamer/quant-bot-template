@@ -173,12 +173,15 @@ def _check_sell(보유종목: list, market_data: dict, now: datetime) -> list[di
             reason = f"장마감 청산 ({수익률:+.2%})"
 
         if reason:
-            log.info(f"{ticker} {종목.get('종목명', '')} 매도: {reason}")
+            name = 종목.get("종목명", "") or STOCK_NAMES.get(ticker, "")
+            log.info(f"{ticker} {name} 매도: {reason}")
             signals.append({
                 "ticker": ticker,
                 "action": "SELL",
                 "qty": 수량,
                 "price": 0,
+                "name": name,
+                "reason": reason,
             })
 
     return signals
@@ -225,23 +228,21 @@ def _check_buy(market_data: dict, account_data: dict, kis, 보유종목코드: s
             continue
 
         buy = False
+        buy_reason = ""
+        name = STOCK_NAMES.get(ticker, ticker)
 
         if slope == "up" and 현재가 < ma:
             buy = True
-            log.info(
-                f"{ticker} [상승추세 눌림목] "
-                f"현재가 {현재가:,} < MA{MA_PERIOD} {ma:,.0f}"
-            )
+            buy_reason = f"상승추세 눌림목 (현재가 {현재가:,} < MA{MA_PERIOD} {ma:,.0f})"
+            log.info(f"{ticker} {name} [{buy_reason}]")
         elif slope == "flat":
             threshold = band_low + band * 0.2 if band > 0 else band_low
             if 현재가 <= threshold:
                 buy = True
-                log.info(
-                    f"{ticker} [횡보 밴드하단] "
-                    f"현재가 {현재가:,} ≤ {threshold:,.0f}"
-                )
+                buy_reason = f"횡보 밴드하단 (현재가 {현재가:,} ≤ {threshold:,.0f})"
+                log.info(f"{ticker} {name} [{buy_reason}]")
         elif slope == "down":
-            log.info(f"{ticker} [하락추세] 패스")
+            log.info(f"{ticker} {name} [하락추세] 패스")
             continue
 
         if buy:
@@ -253,9 +254,11 @@ def _check_buy(market_data: dict, account_data: dict, kis, 보유종목코드: s
                     "action": "BUY",
                     "qty": qty,
                     "price": 0,
+                    "name": name,
+                    "reason": buy_reason,
                 })
                 예수금 -= 현재가 * qty
-                log.info(f"{ticker} 매수: {qty}주 ({현재가 * qty:,}원)")
+                log.info(f"{ticker} {name} 매수: {qty}주 ({현재가 * qty:,}원)")
 
     return signals
 
@@ -296,38 +299,17 @@ def generate_signal(market_data: dict, account_data: dict, kis=None) -> list[dic
 # ======================================================================
 #  관심 종목 — KOSPI 시총 상위 30
 # ======================================================================
-WATCHLIST = [
-    # --- 대형주 (시총 1위~10위) ---
-    "005930",  # 삼성전자
-    "000660",  # SK하이닉스
-    "005380",  # 현대차
-    "207940",  # 삼성바이오로직스
-    "000270",  # 기아
-    "068270",  # 셀트리온
-    "105560",  # KB금융
-    "005490",  # POSCO홀딩스
-    "006400",  # 삼성SDI
-    "055550",  # 신한지주
-    # --- 대형주 (시총 11위~20위) ---
-    "035420",  # NAVER
-    "051910",  # LG화학
-    "003550",  # LG
-    "066570",  # LG전자
-    "032830",  # 삼성생명
-    "017670",  # SK텔레콤
-    "030200",  # KT
-    "035720",  # 카카오
-    "086790",  # 하나금융
-    "316140",  # 우리금융
-    # --- 대형주 (시총 21위~30위) ---
-    "012330",  # 현대모비스
-    "034730",  # SK
-    "010130",  # 고려아연
-    "009150",  # 삼성전기
-    "028260",  # 삼성물산
-    "018260",  # 삼성SDS
-    "033780",  # KT&G
-    "036570",  # NC소프트
-    "015760",  # 한국전력
-    "003490",  # 대한항공
-]
+STOCK_NAMES = {
+    "005930": "삼성전자",    "000660": "SK하이닉스",  "005380": "현대차",
+    "207940": "삼성바이오",  "000270": "기아",        "068270": "셀트리온",
+    "105560": "KB금융",      "005490": "POSCO홀딩스", "006400": "삼성SDI",
+    "055550": "신한지주",    "035420": "NAVER",       "051910": "LG화학",
+    "003550": "LG",          "066570": "LG전자",      "032830": "삼성생명",
+    "017670": "SK텔레콤",    "030200": "KT",          "035720": "카카오",
+    "086790": "하나금융",    "316140": "우리금융",    "012330": "현대모비스",
+    "034730": "SK",          "010130": "고려아연",    "009150": "삼성전기",
+    "028260": "삼성물산",    "018260": "삼성SDS",     "033780": "KT&G",
+    "036570": "NC소프트",    "015760": "한국전력",    "003490": "대한항공",
+}
+
+WATCHLIST = list(STOCK_NAMES.keys())
