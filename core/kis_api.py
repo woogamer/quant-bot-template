@@ -13,6 +13,23 @@ from core.logger import log
 # 모의투자 서버 URL
 BASE_URL = "https://openapivts.koreainvestment.com:29443"
 
+# 모의투자 서버 500 에러 대응 — 최대 3회 재시도 (1초 간격)
+_MAX_RETRIES = 3
+_RETRY_DELAY = 1.0
+
+
+def _request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """requests 호출을 감싸서 5xx 에러 시 재시도합니다."""
+    last_resp = None
+    for attempt in range(_MAX_RETRIES):
+        resp = requests.request(method, url, **kwargs)
+        if resp.status_code < 500:
+            return resp
+        last_resp = resp
+        if attempt < _MAX_RETRIES - 1:
+            time.sleep(_RETRY_DELAY)
+    return last_resp
+
 
 class KISClient:
     """KIS REST API 클라이언트."""
@@ -77,8 +94,8 @@ class KISClient:
             "FID_COND_MRKT_DIV_CODE": "J",
             "FID_INPUT_ISCD": ticker,
         }
-        resp = requests.get(
-            url,
+        resp = _request_with_retry(
+            "GET", url,
             params=params,
             headers=self._headers("FHKST01010100"),
             timeout=10,
@@ -111,8 +128,8 @@ class KISClient:
             "CTX_AREA_FK100": "",
             "CTX_AREA_NK100": "",
         }
-        resp = requests.get(
-            url,
+        resp = _request_with_retry(
+            "GET", url,
             params=params,
             headers=self._headers("VTTC8434R"),
             timeout=10,
@@ -169,8 +186,8 @@ class KISClient:
             "FID_COND_MRKT_DIV_CODE": "J",
             "FID_INPUT_ISCD": ticker,
         }
-        resp = requests.get(
-            url,
+        resp = _request_with_retry(
+            "GET", url,
             params=params,
             headers=self._headers("FHKST01010900"),
             timeout=10,
@@ -199,8 +216,8 @@ class KISClient:
             "ORD_QTY": str(qty),
             "ORD_UNPR": str(price),
         }
-        resp = requests.post(
-            url,
+        resp = _request_with_retry(
+            "POST", url,
             json=payload,
             headers=self._headers(tr_id),
             timeout=10,
