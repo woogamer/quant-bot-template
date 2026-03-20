@@ -10,10 +10,14 @@ kis:
   app_secret: "YOUR_APP_SECRET"
   account_no: "12345678-01"       # 모의투자 계좌번호 (8자리-2자리)
 
-# --- Telegram 알림 ---
+# --- Telegram 알림 (선택) ---
 telegram:
   bot_token: "123456:ABC-DEF..."  # @BotFather 에서 발급
   chat_id: 0                      # 본인 chat_id (정수)
+
+# --- Slack 알림 (선택) ---
+slack:
+  webhook_url: ""                  # Slack Incoming Webhook URL
 
 # --- 봇 실행 설정 ---
 bot:

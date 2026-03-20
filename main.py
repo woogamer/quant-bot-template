@@ -21,6 +21,8 @@ import yaml
 
 from core.kis_api import KISClient
 from core.logger import log
+from core.notifier import CompositeNotifier
+from core.slack_bot import SlackNotifier
 from core.telegram_bot import TelegramNotifier
 from my_strategy import WATCHLIST, generate_signal
 
@@ -101,6 +103,8 @@ def execute_signals(
         price = sig.get("price", 0)
         name = sig.get("name", "")
         reason = sig.get("reason", "")
+        pnl_pct = sig.get("pnl_pct", 0.0)
+        pnl_amt = sig.get("pnl_amt", 0)
 
         if not ticker or not action or qty <= 0:
             log.warning(f"잘못된 시그널 무시: {sig}")
@@ -114,7 +118,11 @@ def execute_signals(
             else:
                 log.warning(f"알 수 없는 action: {action}")
                 continue
-            notifier.notify_order(ticker, action, qty, name=name, reason=reason)
+            notifier.notify_order(
+                ticker, action, qty,
+                name=name, reason=reason,
+                pnl_pct=pnl_pct, pnl_amt=pnl_amt,
+            )
         except Exception as e:
             log.error(f"주문 실패 ({ticker} {action}): {e}")
             notifier.notify_error(f"주문 실패: {ticker} {action} - {e}")
@@ -186,10 +194,16 @@ def main() -> None:
         app_secret=kis_cfg["app_secret"],
         account_no=kis_cfg["account_no"],
     )
-    notifier = TelegramNotifier(
-        bot_token=tg_cfg.get("bot_token", ""),
-        chat_id=tg_cfg.get("chat_id", 0),
-    )
+    slack_cfg = config.get("slack", {})
+    notifier = CompositeNotifier([
+        TelegramNotifier(
+            bot_token=tg_cfg.get("bot_token", ""),
+            chat_id=tg_cfg.get("chat_id", 0),
+        ),
+        SlackNotifier(
+            webhook_url=slack_cfg.get("webhook_url", ""),
+        ),
+    ])
 
     interval = bot_cfg.get("interval_minutes", 10)
 

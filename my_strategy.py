@@ -174,7 +174,8 @@ def _check_sell(보유종목: list, market_data: dict, now: datetime) -> list[di
 
         if reason:
             name = 종목.get("종목명", "") or STOCK_NAMES.get(ticker, "")
-            log.info(f"{ticker} {name} 매도: {reason}")
+            수익금 = (현재가 - 평균단가) * 수량
+            log.info(f"{ticker} {name} 매도: {reason} / {수익금:+,}원")
             signals.append({
                 "ticker": ticker,
                 "action": "SELL",
@@ -182,6 +183,8 @@ def _check_sell(보유종목: list, market_data: dict, now: datetime) -> list[di
                 "price": 0,
                 "name": name,
                 "reason": reason,
+                "pnl_pct": round(수익률 * 100, 2),
+                "pnl_amt": 수익금,
             })
 
     return signals
@@ -191,8 +194,10 @@ def _check_sell(보유종목: list, market_data: dict, now: datetime) -> list[di
 #  매수 판단
 # ------------------------------------------------------------------ #
 
-def _check_buy(market_data: dict, account_data: dict, kis, 보유종목코드: set) -> list[dict]:
+def _check_buy(market_data: dict, account_data: dict, kis, 보유종목코드: set, now: datetime = None) -> list[dict]:
     """매수 조건을 확인합니다."""
+    if now is None:
+        now = datetime.now()
     signals = []
     예수금 = account_data.get("예수금", 0)
 
@@ -223,8 +228,12 @@ def _check_buy(market_data: dict, account_data: dict, kis, 보유종목코드: s
         band_high = analysis["high"]
         band = band_high - band_low
 
-        # 거래량 필터
-        if analysis["avg_vol"] > 0 and analysis["today_vol"] < analysis["avg_vol"] * VOLUME_FILTER:
+        # 거래량 필터 (장중 시간 보정: 경과 비율만큼 평균 조정)
+        # 09:00~15:30 = 390분, 오전엔 거래량이 적으니 비율로 보정
+        now_min = (now.hour - 9) * 60 + now.minute
+        elapsed_ratio = max(now_min / 390, 0.1)
+        adjusted_avg = analysis["avg_vol"] * elapsed_ratio
+        if adjusted_avg > 0 and analysis["today_vol"] < adjusted_avg * VOLUME_FILTER:
             continue
 
         buy = False
@@ -290,7 +299,7 @@ def generate_signal(market_data: dict, account_data: dict, kis=None) -> list[dic
         return signals
 
     # 3) 매수
-    buy_signals = _check_buy(market_data, account_data, kis, 보유종목코드)
+    buy_signals = _check_buy(market_data, account_data, kis, 보유종목코드, now)
     signals.extend(buy_signals)
 
     return signals
