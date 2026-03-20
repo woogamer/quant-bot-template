@@ -9,17 +9,19 @@
    - "삼성전자가 7만원 이하면 매수, 8만원 이상이면 매도"
    - "전일 대비 3% 이상 하락한 종목 매수"
    - "보유 종목이 10% 수익이면 매도"
-   - "예수금의 10% 이내로만 매수"
+   - "MA20 골든크로스 시 매수"
 3. 사용자의 요구사항을 `generate_signal()` 함수 내부에 구현하세요.
-4. 필요하면 `WATCHLIST`에 종목을 추가하세요.
+4. 필요하면 `STOCK_NAMES`에 종목을 추가하세요 (WATCHLIST는 자동 생성됨).
 
 ## 규칙
 
-- `generate_signal(market_data, account_data) -> list[dict]` 시그니처는 절대 변경 금지
+- `generate_signal(market_data, account_data, kis=None) -> list[dict]` 시그니처는 절대 변경 금지
 - 반환값 형식을 반드시 지키세요:
   ```python
   [{"ticker": "005930", "action": "BUY", "qty": 1, "price": 0}]
   ```
+- 알림에 종목명과 사유를 표시하려면 시그널에 `name`, `reason` 필드를 추가하세요.
+- 매도 시 알림에 수익률/수익금을 표시하려면 `pnl_pct`, `pnl_amt` 필드를 추가하세요.
 - `core/` 폴더와 `main.py`는 수정 금지
 - 동기(synchronous) 코드만 사용
 - 외부 패키지가 필요하면 사용자에게 `pip install`을 안내하고 `requirements.txt`에도 추가
@@ -42,4 +44,18 @@ account_data["보유종목"][0]["종목코드"]  # str
 account_data["보유종목"][0]["종목명"]    # str
 account_data["보유종목"][0]["수량"]      # int
 account_data["보유종목"][0]["평균단가"]  # int
+```
+
+### kis (KIS API 클라이언트 — 추가 데이터 조회용)
+```python
+# 일별 시세 조회 (my_strategy.py의 _get_daily_prices 참고)
+from core.kis_api import BASE_URL, _request_with_retry
+kis._ensure_auth()
+resp = _request_with_retry("GET", url, params=params, headers=kis._headers(tr_id), timeout=10)
+```
+
+### STOCK_NAMES (종목코드 → 종목명 매핑)
+```python
+from my_strategy import STOCK_NAMES
+name = STOCK_NAMES.get("005930", "")  # "삼성전자"
 ```

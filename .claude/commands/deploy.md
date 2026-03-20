@@ -13,8 +13,7 @@ quant-bot-template을 서버에서 24시간 자동으로 돌리는 방법을 안
 ### 1단계: 서버에 프로젝트 올리기
 
 ```bash
-# 서버에서 레포 클론
-git clone <레포 URL>
+git clone https://github.com/woogamer/quant-bot-template.git
 cd quant-bot-template
 ```
 
@@ -22,13 +21,17 @@ cd quant-bot-template
 
 ```bash
 cp config.template.yaml config.yaml
-# config.yaml을 편집하여 API 키, 텔레그램 설정 입력
+# config.yaml을 편집하여 API 키, 알림 설정 입력
 ```
+
+주요 설정:
+- `kis.account_no`: 하이픈 없이 10자리 (예: "5012345601")
+- `telegram` 또는 `slack`: 둘 중 하나 이상 설정
+- `bot.interval_minutes`: 전략 실행 주기 (기본 3분)
 
 ### 3단계: 봇 실행
 
 ```bash
-# 백그라운드로 봇 실행
 docker compose up -d --build
 ```
 
@@ -57,7 +60,7 @@ docker compose ps
 1. **서버에서 직접 수정**: `my_strategy.py`를 편집한 뒤 `docker compose restart bot`
 2. **로컬에서 수정 후 배포**: 로컬에서 전략 수정 → git push → 서버에서 `git pull && docker compose restart bot`
 
-`my_strategy.py`는 Docker 볼륨으로 마운트되어 있어서 이미지 재빌드 없이 `restart`만 하면 됩니다.
+`my_strategy.py`와 `config.yaml`은 Docker 볼륨으로 마운트되어 있어서 이미지 재빌드 없이 `restart`만 하면 됩니다.
 
 ## 안내 방식
 

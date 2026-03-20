@@ -11,7 +11,7 @@ config.yaml과 환경 설정이 올바른지 검증해주세요.
 
 ### 2. 패키지 설치 여부
 - `requirements.txt`에 있는 패키지들이 설치되어 있는지 확인
-- `python -c "import requests; import schedule; import yaml; import telegram; print('OK')"` 실행
+- `python -c "import requests; import schedule; import yaml; print('OK')"` 실행
 
 ### 3. config.yaml 존재 여부
 - `config.yaml` 파일이 있는지 확인
@@ -21,13 +21,14 @@ config.yaml과 환경 설정이 올바른지 검증해주세요.
 - config.yaml을 읽어서 아래 필드가 모두 존재하고 기본 템플릿 값이 아닌지 확인:
   - `kis.app_key` — 비어있거나 "YOUR_APP_KEY"가 아닌지
   - `kis.app_secret` — 비어있거나 "YOUR_APP_SECRET"가 아닌지
-  - `kis.account_no` — "12345678-01"이 아닌지, 형식이 맞는지 (숫자8자리-숫자2자리)
-  - `telegram.bot_token` — 비어있거나 예시값이 아닌지
-  - `telegram.chat_id` — 0이 아닌지, 정수인지
+  - `kis.account_no` — 비어있지 않은지, 숫자로만 이루어져 있는지 (하이픈 포함 시 제거 안내)
+  - `telegram.bot_token` 또는 `slack.webhook_url` — 둘 중 하나는 설정되어 있어야 함
+  - `telegram.chat_id` — Telegram 사용 시 0이 아닌 정수인지
 
 ### 5. my_strategy.py 검증
 - `generate_signal` 함수가 존재하는지
 - `WATCHLIST`가 정의되어 있고 종목코드가 들어있는지
+- `STOCK_NAMES`가 정의되어 있는지
 
 ## 출력 형식
 
@@ -38,7 +39,7 @@ config.yaml과 환경 설정이 올바른지 검증해주세요.
 [OK] 패키지 설치 완료
 [OK] config.yaml 존재
 [OK] KIS API 키 설정됨
-[OK] 텔레그램 설정됨
+[OK] 알림 설정됨 (Telegram + Slack)
 [OK] 전략 파일 정상
 ```
 
