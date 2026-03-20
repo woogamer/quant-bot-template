@@ -45,7 +45,7 @@ STOP_LOSS = -0.015    # 손절 기준 수익률 (-1.5%)
 MAX_WEIGHT = 0.20     # 종목당 최대 투자 비중 (총자산의 20%)
 MA_PERIOD = 10        # 이동평균 기간 (거래일)
 SLOPE_THRESHOLD = 0.02  # 추세 판단 기울기 기준 (2%)
-VOLUME_FILTER = 1.0   # 거래량 필터 배수 (평균 대비 1.0배 이상)
+VOLUME_FILTER = 0.7   # 거래량 필터 배수 (평균 대비 0.7배 이상)
 CLOSE_HOUR = 15       # 장마감 청산 시각 (시)
 CLOSE_MINUTE = 0      # 장마감 청산 시각 (분)
 

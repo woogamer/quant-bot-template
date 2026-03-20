@@ -24,7 +24,7 @@ from core.logger import log
 from core.notifier import CompositeNotifier
 from core.slack_bot import SlackNotifier
 from core.telegram_bot import TelegramNotifier
-from my_strategy import WATCHLIST, generate_signal
+from my_strategy import WATCHLIST, generate_signal, STOCK_NAMES
 
 # ------------------------------------------------------------------ #
 #  설정 로드
@@ -87,6 +87,127 @@ def fetch_account_data(kis: KISClient) -> dict:
 
 
 # ------------------------------------------------------------------ #
+#  일일 매매 기록 및 리포트
+# ------------------------------------------------------------------ #
+
+_daily_trades: list[dict] = []
+_daily_report_sent: str = ""  # "YYYY-MM-DD" 형식으로 오늘 리포트 전송 여부 추적
+
+
+def _record_trade(sig: dict) -> None:
+    """매매 기록을 저장합니다."""
+    _daily_trades.append({
+        "time": datetime.now().strftime("%H:%M"),
+        "ticker": sig.get("ticker", ""),
+        "name": sig.get("name", ""),
+        "action": sig.get("action", ""),
+        "qty": sig.get("qty", 0),
+        "reason": sig.get("reason", ""),
+        "pnl_pct": sig.get("pnl_pct", 0.0),
+        "pnl_amt": sig.get("pnl_amt", 0),
+    })
+
+
+def _fetch_kospi(kis: KISClient) -> dict:
+    """KOSPI 지수를 조회합니다."""
+    try:
+        from core.kis_api import _request_with_retry, BASE_URL
+        kis._ensure_auth()
+        resp = _request_with_retry(
+            "GET",
+            f"{BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-index-price",
+            params={"FID_COND_MRKT_DIV_CODE": "U", "FID_INPUT_ISCD": "0001"},
+            headers=kis._headers("FHPUP02100000"),
+            timeout=10,
+        )
+        resp.raise_for_status()
+        out = resp.json().get("output", {})
+        return {
+            "지수": out.get("bstp_nmix_prpr", "0"),
+            "등락률": float(out.get("bstp_nmix_prdy_ctrt", 0)),
+        }
+    except Exception as e:
+        log.warning(f"KOSPI 지수 조회 실패: {e}")
+        return {}
+
+
+def send_daily_report(notifier, kis: KISClient, market_data: dict, account_data: dict) -> None:
+    """장 마감 일일 리포트를 전송합니다."""
+    global _daily_report_sent
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if _daily_report_sent == today:
+        return
+    _daily_report_sent = today
+
+    # KOSPI 지수 조회
+    kospi = _fetch_kospi(kis)
+
+    # 오늘 매매 요약
+    buys = [t for t in _daily_trades if t["action"] == "BUY"]
+    sells = [t for t in _daily_trades if t["action"] == "SELL"]
+    total_pnl = sum(t["pnl_amt"] for t in sells)
+
+    # 보유종목 현황
+    holdings = account_data.get("보유종목", [])
+    deposit = account_data.get("예수금", 0)
+
+    lines = [f"<b>\U0001F4CA 일일 리포트 ({today})</b>", ""]
+
+    # 시장 현황 (KOSPI 지수)
+    if kospi:
+        lines.append(f"\U0001F30D <b>KOSPI</b>: {kospi['지수']} ({kospi['등락률']:+.2f}%)")
+    else:
+        rates = [v["등락률"] for v in market_data.values() if v.get("등락률")]
+        market_avg = sum(rates) / len(rates) if rates else 0
+        lines.append(f"\U0001F30D <b>시장</b>: WATCHLIST 평균 {market_avg:+.2f}%")
+    lines.append("")
+
+    # 매매 내역
+    if buys or sells:
+        lines.append(f"<b>\U0001F4B0 매매 내역</b> (매수 {len(buys)}건 / 매도 {len(sells)}건)")
+        for t in _daily_trades:
+            emoji = "\U0001F4C8" if t["action"] == "BUY" else "\U0001F4C9"
+            name = t["name"] or STOCK_NAMES.get(t["ticker"], t["ticker"])
+            line = f"  {emoji} {t['time']} {t['action']} {name} {t['qty']}주"
+            if t["action"] == "SELL" and t["pnl_amt"]:
+                sign = "+" if t["pnl_amt"] >= 0 else ""
+                line += f" ({t['pnl_pct']:+.2f}% / {sign}{t['pnl_amt']:,}원)"
+            if t["reason"]:
+                line += f" [{t['reason']}]"
+            lines.append(line)
+        lines.append("")
+        if sells:
+            sign = "+" if total_pnl >= 0 else ""
+            lines.append(f"<b>\U0001F3AF 실현 손익: {sign}{total_pnl:,}원</b>")
+    else:
+        lines.append("\U0001F4A4 오늘 매매 없음")
+
+    # 보유 현황
+    lines.append("")
+    lines.append(f"<b>\U0001F4BC 보유 현황</b>")
+    if holdings:
+        for h in holdings:
+            name = h.get("종목명", "") or STOCK_NAMES.get(h["종목코드"], h["종목코드"])
+            price_info = market_data.get(h["종목코드"])
+            if price_info and h["평균단가"] > 0:
+                cur = price_info["현재가"]
+                pnl = (cur - h["평균단가"]) / h["평균단가"] * 100
+                lines.append(f"  {name} {h['수량']}주 ({pnl:+.2f}%)")
+            else:
+                lines.append(f"  {name} {h['수량']}주")
+    else:
+        lines.append("  없음")
+    lines.append(f"  예수금: {deposit:,}원")
+
+    notifier.send("\n".join(lines))
+    log.info("일일 리포트 전송 완료")
+
+    # 매매 기록 초기화
+    _daily_trades.clear()
+
+
+# ------------------------------------------------------------------ #
 #  시그널 실행
 # ------------------------------------------------------------------ #
 
@@ -123,6 +244,7 @@ def execute_signals(
                 name=name, reason=reason,
                 pnl_pct=pnl_pct, pnl_amt=pnl_amt,
             )
+            _record_trade(sig)
         except Exception as e:
             log.error(f"주문 실패 ({ticker} {action}): {e}")
             notifier.notify_error(f"주문 실패: {ticker} {action} - {e}")
@@ -174,6 +296,12 @@ def run_cycle(
 
     # 3) 주문 실행
     execute_signals(kis, notifier, signals)
+
+    # 4) 장 마감 청산 후 일일 리포트
+    now = datetime.now()
+    if now.hour >= 15:
+        send_daily_report(notifier, kis, market_data, account_data)
+
     log.info("=== 전략 실행 완료 ===")
 
 
